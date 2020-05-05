@@ -3,7 +3,7 @@ import tensorflow as tf
 import Utils
 from Utils import LeakyReLU
 import numpy as np
-import OutputLayer
+import Models.OutputLayer as OutputLayer
 
 class UnetAudioSeparator:
     '''
@@ -76,20 +76,23 @@ class UnetAudioSeparator:
         :param reuse: Whether to create new parameter variables or reuse existing ones
         :return: U-Net output: List of source estimates. Each item is a 3D tensor [batch_size, num_out_samples, num_channels]
         '''
+        print(input.get_shape().as_list())
         with tf.variable_scope("separator", reuse=reuse):
             enc_outputs = list()
             current_layer = input
-
+            
             # Down-convolution: Repeat strided conv
             for i in range(self.num_layers):
                 current_layer = tf.layers.conv1d(current_layer, self.num_initial_filters + (self.num_initial_filters * i), self.filter_size, strides=1, activation=LeakyReLU, padding=self.padding) # out = in - filter + 1
                 enc_outputs.append(current_layer)
                 current_layer = current_layer[:,::2,:] # Decimate by factor of 2 # out = (in-1)/2 + 1
-
+    
             current_layer = tf.layers.conv1d(current_layer, self.num_initial_filters + (self.num_initial_filters * self.num_layers),self.filter_size,activation=LeakyReLU,padding=self.padding) # One more conv here since we need to compute features after last decimation
-
+            
             # Feature map here shall be X along one dimension
-
+            
+            ######## TODO ########
+            u=16
             # Upconvolution
             for i in range(self.num_layers):
                 #UPSAMPLING
@@ -105,15 +108,31 @@ class UnetAudioSeparator:
                         current_layer = tf.image.resize_bilinear(current_layer, [1, current_layer.get_shape().as_list()[2]*2]) # out = in + in - 1
                 #current_layer = tf.layers.conv2d_transpose(current_layer, self.num_initial_filters + (16 * (self.num_layers-i-1)), [1, 15], strides=[1, 2], activation=LeakyReLU, padding='same') # output = input * stride + filter - stride
                 current_layer = tf.squeeze(current_layer, axis=1)
-
+                
+                print(enc_outputs[-i-1].get_shape().as_list(), current_layer.get_shape().as_list())
                 assert(enc_outputs[-i-1].get_shape().as_list()[1] == current_layer.get_shape().as_list()[1] or self.context) #No cropping should be necessary unless we are using context
-                current_layer = Utils.crop_and_concat(enc_outputs[-i-1], current_layer, match_feature_dim=False)
+                cropped_C = Utils.crop(enc_outputs[-i-1], current_layer.get_shape().as_list(), match_feature_dim=False)
+                # Attention gates
+                B_feature_layer_U = tf.layers.conv1d(current_layer, u, 1, activation=None, padding=self.padding)
+                B_feature_layer_C = tf.layers.conv1d(cropped_C, u, 1, activation=None, padding=self.padding)
+                B_feature_layer = tf.sigmoid(B_feature_layer_U + B_feature_layer_C)
+                att_mask = tf.layers.conv1d(B_feature_layer, 1, 1, activation=tf.sigmoid, padding=self.padding)
+                masked_C = tf.multiply(att_mask, cropped_C)
+                assert(masked_C.get_shape().as_list()[1] == current_layer.get_shape().as_list()[1])
+                current_layer = Utils.crop_and_concat(masked_C, current_layer, match_feature_dim=False)
                 current_layer = tf.layers.conv1d(current_layer, self.num_initial_filters + (self.num_initial_filters * (self.num_layers - i - 1)), self.merge_filter_size,
                                                  activation=LeakyReLU,
                                                  padding=self.padding)  # out = in - filter + 1
+            
+            cropped_input = Utils.crop(input, current_layer.get_shape().as_list(), match_feature_dim=False)
+            B_feature_layer_U = tf.layers.conv1d(current_layer, u, 1, activation=None, padding=self.padding)
+            B_feature_layer_C = tf.layers.conv1d(cropped_input, u, 1, activation=None, padding=self.padding)
+            B_feature_layer = tf.sigmoid(B_feature_layer_U + B_feature_layer_C)
+            final_att_mask = tf.layers.conv1d(B_feature_layer, 1, 1, activation=tf.sigmoid, padding=self.padding)
+            masked_input = tf.multiply(final_att_mask, cropped_input)
 
-            current_layer = Utils.crop_and_concat(input, current_layer, match_feature_dim=False)
-
+            current_layer = Utils.crop_and_concat(masked_input, current_layer, match_feature_dim=False)
+            
             # Output layer
             if self.output_type == "direct":
                 return OutputLayer.independent_outputs(current_layer, self.num_sources, self.num_channels)
