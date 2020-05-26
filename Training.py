@@ -11,7 +11,7 @@ from tqdm import tqdm
 # from Input import Input as Input
 # from Input import batchgenerators as batchgen
 import Utils
-import Models.UnetAudioSeparator
+import Models.UnetAudioSeparator_no_att
 # import cPickle as pickle
 # import Validation
 import data_reader_Audio_RIRs
@@ -26,7 +26,7 @@ def train(model_config, experiment_id, load_model=None,
     # Determine input and output shapes
     disc_input_shape = [model_config["batch_size"], model_config["num_frames"], 0]  # Shape of input
     if model_config["network"] == "unet":
-        separator_class = Models.UnetAudioSeparator.UnetAudioSeparator(model_config["num_layers"],
+        separator_class = Models.UnetAudioSeparator_no_att.UnetAudioSeparator_no_att(model_config["num_layers"],
                                                                        model_config["num_initial_filters"],
                                                                    output_type=model_config["output_type"],
                                                                    context=model_config["context"],
@@ -70,8 +70,8 @@ def train(model_config, experiment_id, load_model=None,
                 use_label_class = False,
                 hint_window = 128,
                 inject_noise = True,
-                augment_reverb=False,
-                augment_speech=False,
+                augment_reverb=True,
+                augment_speech=True,
                 norm_volume=False,
                 stft_similarity=None)
         
@@ -234,15 +234,15 @@ def optimise(model_config, experiment_id):
     epoch = 0
     best_loss = 10000
     best_loss_test = 10000
-    best_model_path = None
-    for i in range(2):
-        worse_epochs = 0
-        if i==1:
-            print("Finished first round of training, now entering fine-tuning stage")
-            model_config["batch_size"] *= 2
-            model_config["cache_size"] *= 2
-            model_config["min_replacement_rate"] *= 2
-            model_config["init_sup_sep_lr"] = 1e-5
+    best_model_path = "/home/code-base/runtime/experiments/Wave-U-Net-For-Speech-Enhancement/checkpoints/772306/772306-574000"
+    for i in range(1, 2):
+#         worse_epochs = 0
+#         if i==1:
+#             print("Finished first round of training, now entering fine-tuning stage")
+#             model_config["batch_size"] *= 2
+#             model_config["cache_size"] *= 2
+#             model_config["min_replacement_rate"] *= 2
+#             model_config["init_sup_sep_lr"] = 1e-5
         print(model_config)
         best_model_path, epoch, best_loss, best_loss_test = train(load_model=best_model_path, epoch = epoch, 
                                            best_loss = best_loss,

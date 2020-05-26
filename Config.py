@@ -9,8 +9,8 @@ def cfg():
     model_config = {"model_base_dir" : "checkpoints", # Base folder for model checkpoints
                     "log_dir" : "logs", # Base folder for logs files
                     "data_dir": "/trainman-mount/trainman-storage-dc5e03f8-a08d-49bb-b3a9-4bae92eb4e92",
-                    "batch_size" : 16, # Batch size
-                    "init_sup_sep_lr" : 1e-4, # Supervised separator learning rate
+                    "batch_size" : 16 * 2, # Batch size
+                    "init_sup_sep_lr" : 1e-4 / 10.0, # Supervised separator learning rate
                     "epoch_it" : 2000, # Number of supervised separator steps per epoch
                     'cache_size' : 16, # Number of audio excerpts that are cached to build batches from
                     'num_workers' : 4, # Number of processes reading audio and filling up the cache

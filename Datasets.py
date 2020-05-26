@@ -6,11 +6,11 @@ from lxml import etree
 
 
 def create_sample(db_path, noise_node):
-   path = db_path + os.path.sep + noise_node.xpath("./relativeFilepath")[0].text
-   sample_rate = int(noise_node.xpath("./sampleRate")[0].text)
-   channels = int(noise_node.xpath("./numChannels")[0].text)
-   duration = float(noise_node.xpath("./length")[0].text)
-   return Sample(path, sample_rate, channels, duration)
+    path = db_path + os.path.sep + noise_node.xpath("./relativeFilepath")[0].text
+    sample_rate = int(noise_node.xpath("./sampleRate")[0].text)
+    channels = int(noise_node.xpath("./numChannels")[0].text)
+    duration = float(noise_node.xpath("./length")[0].text)
+    return Sample(path, sample_rate, channels, duration)
 
 def getAudioData(xml_path):
     tree = etree.parse(xml_path)

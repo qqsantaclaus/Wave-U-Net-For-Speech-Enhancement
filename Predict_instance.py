@@ -116,34 +116,19 @@ ex.observers.append(FileStorageObserver.create('my_runs/Predictions'))
 session_id = "506984"
 ckpt = "496000"
 
-root = "/trainman-mount/trainman-storage-420a420f-b7a2-4445-abca-0081fc7108ca/sim_SE_results_cuts"
-
-env_sel = np.load("/home/code-base/runtime/experiments/helper_notebooks/sim_selections.npy")
-
-# root = "/trainman-mount/trainman-storage-420a420f-b7a2-4445-abca-0081fc7108ca/daps_SE_results_cuts"
-
-for dirpath, dirs, filenames in os.walk(root):    
-    if not dirpath.split("/")[-1]=="Reverb":
-        continue
-        
-    for filename in filenames:
-        if filename not in env_sel:
-            continue
-        new_filename = filename.replace("Reverb", "WaveUNet")
-#         print(os.path.join(dirpath, filename), new_filename)
-        @ex.config
-        def cfg():
-            load_model = os.path.join("checkpoints", session_id, "-".join([session_id, ckpt])) # Load model from checkpoints folder. E.g. a particular model, "105373-450225" from "checkpoints/105373"
-            input_path = os.path.join(dirpath, filename) # Which audio file to separate. In this example, within path
+@ex.config
+def cfg():
+    load_model = os.path.join("checkpoints", session_id, "-".join([session_id, ckpt])) # Load model from checkpoints folder. E.g. a particular model, "105373-450225" from "checkpoints/105373"
+    input_path = os.path.join("/home/code-base/runtime/experiments/MetricGAN/data/Noisy/f10_script5_ipad_office1.wav") # Which audio file to separate. In this example, within path
 #             if not os.path.exists(os.path.join("./infer_outputs/daps", session_id, dirpath.split("/")[-2], "WaveUNet")):
 #                 os.makedirs(os.path.join("./infer_outputs/daps", session_id, dirpath.split("/")[-2], "WaveUNet"))
-            output_path = os.path.join("./infer_outputs/sim", session_id, dirpath.split("/")[-2], "WaveUNet") # Where to save results. Default: Same location as input.
-            output_name = new_filename
+    output_path = os.path.join("./infer_outputs") # Where to save results. Default: Same location as input.
+    output_name = "1-noisy-float.wav"
 
-        @ex.automain
-        def run(cfg, input_path, output_path, output_name, load_model):
-            model_config = cfg["model_config"]
-            print("SCRIPT START")
-            # Create subfolders if they do not exist to save results
-            predict(model_config, input_path, output_path, output_name, load_model)
+@ex.automain
+def run(cfg, input_path, output_path, output_name, load_model):
+    model_config = cfg["model_config"]
+    print("SCRIPT START")
+    # Create subfolders if they do not exist to save results
+    predict(model_config, input_path, output_path, output_name, load_model)
     

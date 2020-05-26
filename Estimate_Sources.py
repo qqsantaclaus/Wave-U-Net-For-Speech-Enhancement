@@ -142,7 +142,8 @@ def produce_source_estimates(model_config, load_model, input_path, output_path=N
     '''
     print("Producing source estimates for input mixture file " + input_path)
     # Prepare input audio for prediction function
-    audio, sr = Utils.load(input_path, sr=None, mono=False)
+#     audio, sr = Utils.load(input_path, sr=None, mono=False)
+    audio, sr = librosa.load(input_path, sr=model_config["sample_rate"], mono=False)
     # Create something that looks sufficiently like a track object to our MUSDB function
     class TrackLike(object):
         def __init__(self, audio, rate, shape):

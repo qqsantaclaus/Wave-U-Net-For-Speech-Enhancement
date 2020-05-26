@@ -34,15 +34,43 @@ def test(model_config, audio_list, model_folder, load_model):
     # Batch size of 1
     sep_input_shape[0] = 1
     sep_output_shape[0] = 1
+    
+    coord = tf.train.Coordinator()
+    with tf.name_scope('create_inputs'):
+        reader = DataReader(
+                model_config["data_dir"],
+                coord,
+                sample_size=sep_input_shape[0],
+                hint_size=0,
+                target_size=sep_output_shape[1],
+                sample_rate=model_config["sample_rate"],
+                queue_size = 128,
+                random_crop = True,
+                data_range = data_reader_Audio_RIRs.CLEAN_DATA_RANGE,
+                test_data_range = data_reader_Audio_RIRs.CLEAN_TEST_DATA_RANGE,
+                disc_thread_enabled = False,
+                spec_generator = None,
+                use_label_class = False,
+                hint_window = 128,
+                inject_noise = True,
+                augment_reverb=False,
+                augment_speech=False,
+                norm_volume=False,
+                stft_similarity=None)
+            train_batches = reader.dequeue(model_config["batch_size"])
 
-    mix_context, sources = Input.get_multitrack_placeholders(sep_output_shape, model_config["num_sources"], sep_input_shape, "input")
+            """For test set"""
+            test_batches = reader.dequeue_test(model_config["batch_size"])
+            test_ext_batches = reader.dequeue_test_ext(model_config["batch_size"])
+
+#     mix_context, sources = Input.get_multitrack_placeholders(sep_output_shape, model_config["num_sources"], sep_input_shape, "input")
 
     print("Testing...")
+    mix_context, sources = test_batches
 
     # BUILD MODELS
     # Separator
     separator_sources = separator_func(mix_context, False, False, reuse=False)
-
     global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False, dtype=tf.int64)
 
     # Start session and queue input threads
