@@ -5,13 +5,13 @@ from Utils import LeakyReLU
 import numpy as np
 import Models.OutputLayer as OutputLayer
 
-class UnetAudioSeparator:
+class RealTimeUnetAudioSeparator:
     '''
     U-Net separator network for source separation task for speech enhancement.
     Uses valid convolutions, so it predicts for the centre part of the input - only certain input and output shapes are therefore possible (see getpadding function)
     '''
 
-    def __init__(self, num_layers, num_initial_filters, upsampling, output_type, context, num_sources, mono, filter_size, merge_filter_size):
+    def __init__(self, num_layers, num_initial_filters, upsampling, output_type, context, num_sources, mono, filter_size, merge_filter_size, stride_size):
         '''
         Initialize U-net
         :param num_layers: Number of down- and upscaling layers in the network
@@ -20,6 +20,7 @@ class UnetAudioSeparator:
         self.num_initial_filters = num_initial_filters
         self.filter_size = filter_size
         self.merge_filter_size = merge_filter_size
+        self.stride_size = stride_size
         self.upsampling = upsampling
         self.output_type = output_type
         self.context = context
@@ -83,7 +84,12 @@ class UnetAudioSeparator:
             
             # Down-convolution: Repeat strided conv
             for i in range(self.num_layers):
-                current_layer = tf.layers.conv1d(current_layer, self.num_initial_filters + (self.num_initial_filters * i), self.filter_size, strides=1, activation=LeakyReLU, padding=self.padding) # out = in - filter + 1
+                current_layer = tf.layers.conv1d(current_layer, 
+                                                 self.num_initial_filters * (2**i), 
+                                                 self.filter_size,
+                                                 strides=self.stride_size, 
+                                                 activation=LeakyReLU, 
+                                                 padding=self.padding) # out = in - filter + 1
                 enc_outputs.append(current_layer)
                 current_layer = current_layer[:,::2,:] # Decimate by factor of 2 # out = (in-1)/2 + 1
     
@@ -121,7 +127,7 @@ class UnetAudioSeparator:
                 assert(masked_C.get_shape().as_list()[1] == current_layer.get_shape().as_list()[1])
                 current_layer = Utils.crop_and_concat(masked_C, current_layer, match_feature_dim=False)
                 current_layer = tf.layers.conv1d(current_layer, self.num_initial_filters + (self.num_initial_filters * (self.num_layers - i - 1)), self.merge_filter_size,
-                                                 activation="relu",
+                                                 activation=LeakyReLU,
                                                  padding=self.padding)  # out = in - filter + 1
             
             cropped_input = Utils.crop(input, current_layer.get_shape().as_list(), match_feature_dim=False)
